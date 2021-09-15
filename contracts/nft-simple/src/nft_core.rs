@@ -7,55 +7,6 @@ const GAS_FOR_RESOLVE_TRANSFER: Gas = 10_000_000_000_000;
 const GAS_FOR_NFT_TRANSFER_CALL: Gas = 25_000_000_000_000 + GAS_FOR_RESOLVE_TRANSFER;
 const NO_DEPOSIT: Balance = 0;
 
-pub trait NonFungibleTokenCore {
-    fn nft_transfer(
-        &mut self,
-        receiver_id: ValidAccountId,
-        token_id: TokenId,
-        approval_id: u64,
-        memo: Option<String>,
-    );
-
-  	fn nft_payout(&self, token_id: String, balance: U128, max_len_payout: u32) -> Payout;
-
-    fn nft_transfer_payout(
-        &mut self,
-        receiver_id: ValidAccountId,
-        token_id: TokenId,
-        approval_id: u64,
-        memo: String,
-        balance: U128,
-        max_len_payout: u32,
-    ) -> Payout;
-
-    /// Returns `true` if the token was transferred from the sender's account.
-    fn nft_transfer_call(
-        &mut self,
-        receiver_id: ValidAccountId,
-        token_id: TokenId,
-        approval_id: u64,
-        memo: Option<String>,
-        msg: String,
-    ) -> Promise;
-
-    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>);
-
-	fn nft_is_approved(
-        &self,
-        token_id: TokenId,
-        approved_account_id: AccountId,
-        approval_id: Option<u64>,
-    ) -> bool;
-
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId);
-
-    fn nft_revoke_all(&mut self, token_id: TokenId);
-
-    fn nft_total_supply(&self) -> U128;
-
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken>;
-}
-
 #[ext_contract(ext_non_fungible_token_receiver)]
 trait NonFungibleTokenReceiver {
     /// Returns `true` if the token should be returned back to the sender.
@@ -92,21 +43,10 @@ trait NonFungibleTokenResolver {
     ) -> bool;
 }
 
-trait NonFungibleTokenResolver {
-    fn nft_resolve_transfer(
-        &mut self,
-        owner_id: AccountId,
-        receiver_id: AccountId,
-        token_id: TokenId,
-        approved_account_ids: HashMap<AccountId, u64>,
-    ) -> bool;
-}
-
 #[near_bindgen]
-impl NonFungibleTokenCore for Contract {
-
+impl Contract {
     #[payable]
-    fn nft_transfer(
+    pub fn nft_transfer(
         &mut self,
         receiver_id: ValidAccountId,
         token_id: TokenId,
@@ -128,7 +68,7 @@ impl NonFungibleTokenCore for Contract {
         );
     }
 
-    fn nft_payout(&self, token_id: String, balance: U128, max_len_payout: u32) -> Payout {
+    pub fn nft_payout(&self, token_id: String, balance: U128, max_len_payout: u32) -> Payout {
 		let token = self.tokens_by_id.get(&token_id).expect("No token");
 
         // compute payouts based on balance option
@@ -162,7 +102,7 @@ impl NonFungibleTokenCore for Contract {
 	}
 
     #[payable]
-    fn nft_transfer_payout(
+    pub fn nft_transfer_payout(
         &mut self,
         receiver_id: ValidAccountId,
         token_id: TokenId,
@@ -216,7 +156,7 @@ impl NonFungibleTokenCore for Contract {
     }
 
     #[payable]
-    fn nft_transfer_call(
+    pub fn nft_transfer_call(
         &mut self,
         receiver_id: ValidAccountId,
         token_id: TokenId,
@@ -255,7 +195,7 @@ impl NonFungibleTokenCore for Contract {
     }
 
     #[payable]
-    fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
+    pub fn nft_approve(&mut self, token_id: TokenId, account_id: ValidAccountId, msg: Option<String>) {
         assert_at_least_one_yocto();
         let account_id: AccountId = account_id.into();
 
@@ -306,7 +246,7 @@ impl NonFungibleTokenCore for Contract {
         }
     }
 
-	fn nft_is_approved(
+	pub fn nft_is_approved(
         &self,
         token_id: TokenId,
         approved_account_id: AccountId,
@@ -326,7 +266,7 @@ impl NonFungibleTokenCore for Contract {
     }
 
     #[payable]
-    fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
+    pub fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
         assert_one_yocto();
         let mut token = self.tokens_by_id.get(&token_id).expect("No token");
         let predecessor_account_id = env::predecessor_account_id();
@@ -342,7 +282,7 @@ impl NonFungibleTokenCore for Contract {
     }
 
     #[payable]
-    fn nft_revoke_all(&mut self, token_id: TokenId) {
+    pub fn nft_revoke_all(&mut self, token_id: TokenId) {
         assert_one_yocto();
         let mut token = self.tokens_by_id.get(&token_id).expect("No token");
         let predecessor_account_id = env::predecessor_account_id();
@@ -354,11 +294,11 @@ impl NonFungibleTokenCore for Contract {
         }
     }
 
-    fn nft_total_supply(&self) -> U128 {
+    pub fn nft_total_supply(&self) -> U128 {
         U128(self.token_metadata_by_id.len() as u128)
     }
 
-    fn nft_token(&self, token_id: TokenId) -> Option<JsonToken> {
+    pub fn nft_token(&self, token_id: TokenId) -> Option<JsonToken> {
         if let Some(token) = self.tokens_by_id.get(&token_id) {
             let metadata = self.token_metadata_by_id.get(&token_id).unwrap();
             Some(JsonToken {
@@ -373,12 +313,9 @@ impl NonFungibleTokenCore for Contract {
             None
         }
     }
-}
 
-#[near_bindgen]
-impl NonFungibleTokenResolver for Contract {
     #[private]
-    fn nft_resolve_transfer(
+    pub fn nft_resolve_transfer(
         &mut self,
         owner_id: AccountId,
         receiver_id: AccountId,
